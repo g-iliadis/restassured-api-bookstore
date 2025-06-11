@@ -127,31 +127,40 @@ jobs:
       cancel-in-progress: false
 
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
 
     steps:
-      - name: Download Allure results
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: Download test results
         uses: actions/download-artifact@v4
         with:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
-          path: allure-results
+          path: build
 
-      - name: Build Allure report
+      - name: Build Allure report with history
         uses: simple-elf/allure-report-action@v1.12
+        if: always()
         with:
-          gh_pages: gh-pages
-          allure_results: test-artifacts/allure-results
+          allure_results: build/test-artifacts/allure-results
           allure_report: allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Publish to gh-pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: allure-report
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
 
       - name: Deploy to GitHub Pages
         id: deploy
