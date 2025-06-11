@@ -1,0 +1,157 @@
+name: Bookstore API Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: false
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - demo
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      TEST_ENV: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            m2-${{ runner.os }}-
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run tests
+        run: |
+          if [ "${TEST_ENV}" = "demo" ]; then
+            mvn --batch-mode clean test -Denv=demo
+          else
+            mvn --batch-mode clean test
+          fi
+
+      - name: Generate Allure report files
+        if: always()
+        run: mvn --batch-mode allure:report
+
+      - name: Collect test artifacts
+        if: always()
+        run: |
+          mkdir -p test-artifacts
+          cp -r target/allure-results               test-artifacts/ || true
+          cp -r target/site/allure-maven-plugin     test-artifacts/allure-report || true
+          cp -r target/surefire-reports             test-artifacts/ || true
+          cp -r target/cucumber-report              test-artifacts/ || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
+          path: test-artifacts/
+          retention-days: 30
+
+      - name: Add job summary
+        if: always()
+        run: |
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${TEST_ENV:-test}" >> $GITHUB_STEP_SUMMARY
+          echo "- Java Version: 21" >> $GITHUB_STEP_SUMMARY
+          echo "- Run Number: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Run Attempt: ${{ github.run_attempt }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f target/surefire-reports/testng-results.xml ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Test Statistics" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -E "total|passed|failed|skipped" target/surefire-reports/testng-results.xml | head -5 >> $GITHUB_STEP_SUMMARY || echo "Could not extract test statistics" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+  package-artifacts:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Bundle ZIP
+        run: |
+          cd all-artifacts
+          zip -r ../bookstore-test-artifacts-${{ github.run_number }}-${{ github.run_attempt }}.zip .
+          cd ..
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookstore-test-complete-${{ github.run_number }}-${{ github.run_attempt }}
+          path: bookstore-test-artifacts-${{ github.run_number }}-${{ github.run_attempt }}.zip
+          retention-days: 90
+
+  allure-report-gh-pages:
+    needs: test
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
+          path: allure-results
+
+      - name: Build Allure report
+        uses: simple-elf/allure-report-action@v1.12
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

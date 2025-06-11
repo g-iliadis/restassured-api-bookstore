@@ -1,0 +1,16 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="Bookstore API Test Suite" parallel="methods" thread-count="2">
+    <listeners>
+        <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
+    </listeners>
+    <test name="Linear Test" parallel="false">
+        <classes>
+            <class name="com.api.bookstore.runner.linear.LinearRunner"/>
+        </classes>
+    </test>
+    <test name="Parallel Test Runner 01">
+        <classes>
+            <class name="com.api.bookstore.runner.parallel.ParallelRunner"/>
+        </classes>
+    </test>
+</suite>

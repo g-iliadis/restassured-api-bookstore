@@ -1,0 +1,11 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="Bookstore API Test Suite" parallel="methods" thread-count="2">
+    <listeners>
+        <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
+    </listeners>
+    <test name="IntegrationTests">
+        <packages>
+            <package name="com.api.bookstore.api"/>
+        </packages>
+    </test>
+</suite>
