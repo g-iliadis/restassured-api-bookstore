@@ -141,7 +141,8 @@ jobs:
       - name: Build Allure report
         uses: simple-elf/allure-report-action@v1.12
         with:
-          allure_results: allure-results
+          gh_pages: gh-pages
+          allure_results: test-artifacts/allure-results
           allure_report: allure-report
 
       - name: Setup Pages
