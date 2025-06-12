@@ -135,15 +135,15 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
-      - name: Checkout gh-pages history
+      - name: Fetch gh-pages history (optional)
         if: always()
         continue-on-error: true
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-          sparse-checkout: |
-            history
+        run: |
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git clone --depth 1 --single-branch --branch gh-pages https://github.com/${{ github.repository }} gh-pages
+          else
+            echo "No gh-pages branch found — skipping history fetch."
+          fi
 
       - name: Set up JDK 21 for Allure CLI
         uses: actions/setup-java@v4
@@ -154,20 +154,19 @@ jobs:
       - name: Cache Allure CLI
         uses: actions/cache@v4
         with:
-          path: /opt/allure
+          path: /opt/allure-2.29.1
           key: allure-cli-2.29.1
           restore-keys: |
             allure-cli-
 
       - name: Install Allure CLI
         run: |
-          if [ ! -d "/opt/allure" ]; then
-            echo "Downloading Allure CLI 2.29.1…"
-            curl -sSL -o allure-cli.tgz https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.tgz
-            sudo tar -xzf allure-cli.tgz -C /opt
-            sudo mv /opt/allure-2.29.1 /opt/allure
+          if [ ! -d "/opt/allure-2.29.1" ]; then
+            echo "Downloading Allure CLI 2.29.1 (zip)…"
+            curl -sSL -o allure-cli.zip https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.zip
+            sudo unzip -q allure-cli.zip -d /opt
           fi
-          sudo ln -sf /opt/allure/bin/allure /usr/local/bin/allure
+          sudo ln -sf /opt/allure-2.29.1/bin/allure /usr/local/bin/allure
 
       - name: Copy Allure history
         if: always()
