@@ -2,17 +2,17 @@ name: Bookstore API Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to run tests against (test, demo or leave empty for test)'
+        description: 'Environment to run tests against (test, demo ή κενό για test)'
         required: false
         default: ''
         type: choice
-        options: [ '', test, demo ]
+        options: ['', test, demo]
 
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21 with Maven cache
+      - name: Set up JDK 21 & Maven cache
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -43,7 +43,7 @@ jobs:
       - name: Run tests
         run: mvn --batch-mode clean test -Denv=${TEST_ENV}
 
-      - name: Generate Allure report files (Maven plugin)
+      - name: Generate Allure result files (Maven plugin)
         if: always()
         run: mvn --batch-mode allure:report
 
@@ -93,38 +93,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # κατεβάζουμε τον κώδικα (main) – χρειάζεται για το workflow
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # κατεβάζουμε τα artifacts με τα αποτελέσματα
       - name: Download test artifacts
         uses: actions/download-artifact@v4
         with:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
+      # αντιγράφουμε τα allure-results εκεί που τα θέλει το action
       - name: Prepare Allure results directory
         run: |
           mkdir -p build/allure-results
           cp -r artifacts/allure-results/* build/allure-results/ || true
 
-      - name: Load test report history
-        uses: actions/checkout@v4
-        if: always()
-        continue-on-error: true
-        with:
-          ref: gh-pages
-          path: gh-pages
+      # 🆕 δημιουργούμε κενό φάκελο 'gh-pages' ως history path
+      - name: Create empty history folder
+        run: mkdir -p gh-pages
 
+      # χτίζουμε το report με simple-elf/allure-report-action
       - name: Build test report
-        uses: simple-elf/allure-report-action@v1.12
+        uses: simple-elf/allure-report-action@v1.7
         if: always()
         with:
           gh_pages: gh-pages
           allure_history: allure-history
           allure_results: build/allure-results
 
+      # δημοσιεύουμε στο branch gh-pages (θα δημιουργηθεί orphan αν δεν υπάρχει)
       - name: Publish test report
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@v3
         if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
