@@ -2,43 +2,41 @@ name: Bookstore API Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to run tests against'
+        description: 'Environment to run tests against (test, demo or leave empty for test)'
         required: false
-        default: 'test'
+        default: ''
         type: choice
         options:
+          - ''
           - test
           - demo
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Test (${{ env.TEST_ENV }})
     runs-on: ubuntu-latest
+
     concurrency:
       group: ci-${{ github.ref }}
       cancel-in-progress: true
 
     env:
-      TEST_ENV: ${{ github.event.inputs.environment }}
+      TEST_ENV: ${{ github.event.inputs.environment || 'test' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: m2-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            m2-${{ runner.os }}-
-
-      - name: Set up JDK 21
+      - name: Set up JDK 21 with Maven cache
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,12 +44,7 @@ jobs:
           cache: maven
 
       - name: Run tests
-        run: |
-          if [ "${TEST_ENV}" = "demo" ]; then
-            mvn --batch-mode clean test -Denv=demo
-          else
-            mvn --batch-mode clean test
-          fi
+        run: mvn --batch-mode clean test -Denv=${TEST_ENV}
 
       - name: Generate Allure report files
         if: always()
@@ -78,7 +71,7 @@ jobs:
         if: always()
         run: |
           echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: ${TEST_ENV:-test}" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${TEST_ENV}" >> $GITHUB_STEP_SUMMARY
           echo "- Java Version: 21" >> $GITHUB_STEP_SUMMARY
           echo "- Run Number: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- Run Attempt: ${{ github.run_attempt }}" >> $GITHUB_STEP_SUMMARY
@@ -132,18 +125,61 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download Allure results
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download test artifacts
         uses: actions/download-artifact@v4
         with:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
-          path: allure-results
+          path: artifacts
 
-      - name: Build Allure report
-        uses: simple-elf/allure-report-action@v1.12
+      - name: Checkout gh-pages history
+        if: always()
+        continue-on-error: true
+        uses: actions/checkout@v4
         with:
-          gh_pages: gh-pages
-          allure_results: test-artifacts/allure-results
-          allure_report: allure-report
+          ref: gh-pages
+          path: gh-pages
+          sparse-checkout: |
+            history
+
+      - name: Set up JDK 21 for Allure CLI
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Allure CLI
+        uses: actions/cache@v4
+        with:
+          path: /opt/allure
+          key: allure-cli-2.29.1
+          restore-keys: |
+            allure-cli-
+
+      - name: Install Allure CLI
+        run: |
+          if [ ! -d "/opt/allure" ]; then
+            curl -sLo allure-cli.tgz https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.tgz
+            tar -xzf allure-cli.tgz
+            sudo mv allure-2.29.1 /opt/allure
+          fi
+          sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
+
+      - name: Copy Allure history
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p allure-results
+          if [ -d "gh-pages/history" ]; then
+            cp -r gh-pages/history allure-results/
+          fi
+
+      - name: Generate Allure report
+        run: |
+          cp -r artifacts/test-artifacts/allure-results/* allure-results/ || true
+          allure generate allure-results --clean --output allure-report
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
