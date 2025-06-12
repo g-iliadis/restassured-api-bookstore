@@ -1,0 +1,1 @@
+{"total":2,"items":[{"uid":"f3d227e7ca7977e6eedd18c20213de61","name":"Bookstore API Test Suite","statistic":{"failed":3,"broken":0,"skipped":0,"passed":5,"unknown":0,"total":8}},{"uid":"8384cb890e148f10fc52b8f3d963ac5a","name":"Bookstore Shelf - E2E","statistic":{"failed":1,"broken":0,"skipped":0,"passed":0,"unknown":0,"total":1}}]}
