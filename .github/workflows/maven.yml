@@ -2,9 +2,9 @@ name: Bookstore API Tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
@@ -12,7 +12,7 @@ on:
         required: false
         default: ''
         type: choice
-        options: ['', test, demo]
+        options: [ '', test, demo ]
 
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
       - name: Run tests
         run: mvn --batch-mode clean test -Denv=${TEST_ENV}
 
-      - name: Generate Allure HTML via Maven plugin
+      - name: Generate Allure report files (Maven plugin)
         if: always()
         run: mvn --batch-mode allure:report
 
@@ -63,22 +63,6 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: test-artifacts/
           retention-days: 30
-
-      - name: Add job summary
-        if: always()
-        run: |
-          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: ${TEST_ENV}" >> $GITHUB_STEP_SUMMARY
-          echo "- Java Version: 21" >> $GITHUB_STEP_SUMMARY
-          echo "- Run Number: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Run Attempt: ${{ github.run_attempt }}" >> $GITHUB_STEP_SUMMARY
-          if [ -f target/surefire-reports/testng-results.xml ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Test Statistics" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -E "total|passed|failed|skipped" target/surefire-reports/testng-results.xml | head -5 >> $GITHUB_STEP_SUMMARY || echo "Could not extract test statistics" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
 
   package-artifacts:
     needs: test
@@ -103,23 +87,10 @@ jobs:
           path: bookstore-test-artifacts-${{ github.run_number }}-${{ github.run_attempt }}.zip
           retention-days: 90
 
-  allure-report-gh-pages:
+  allure-report:
     needs: test
     if: always() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -131,34 +102,31 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
-      - name: Fetch gh-pages history (optional)
+      - name: Prepare Allure results directory
+        run: |
+          mkdir -p build/allure-results
+          cp -r artifacts/allure-results/* build/allure-results/ || true
+
+      - name: Load test report history
+        uses: actions/checkout@v4
         if: always()
         continue-on-error: true
-        run: |
-          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
-            git clone --depth 1 --single-branch --branch gh-pages https://github.com/${{ github.repository }} gh-pages
-          else
-            echo "No gh-pages branch found — skipping history fetch."
-          fi
-
-      - name: Prepare Allure report for Pages
-        run: |
-          mkdir -p final-report
-          cp -r artifacts/allure-report/* final-report/
-          if [ -d "gh-pages/history" ]; then
-            mkdir -p final-report/history
-            cp -r gh-pages/history/* final-report/history/
-          fi
-          touch final-report/.nojekyll
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
         with:
-          path: final-report
+          ref: gh-pages
+          path: gh-pages
 
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Build test report
+        uses: simple-elf/allure-report-action@v1.12
+        if: always()
+        with:
+          gh_pages: gh-pages
+          allure_history: allure-history
+          allure_results: build/allure-results
+
+      - name: Publish test report
+        uses: peaceiris/actions-gh-pages@v4
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
