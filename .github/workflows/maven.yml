@@ -22,7 +22,8 @@ permissions:
 
 jobs:
   test:
-    name: Test (${{ env.TEST_ENV }})
+    # Job name kept simple to avoid expression-evaluation errors
+    name: Tests
     runs-on: ubuntu-latest
 
     concurrency:
