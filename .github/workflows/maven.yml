@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to run tests against (test, demo ή κενό για test)'
+        description: 'Environment to run tests against'
         required: false
         default: ''
         type: choice
