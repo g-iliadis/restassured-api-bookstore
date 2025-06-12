@@ -161,8 +161,9 @@ jobs:
 
       - name: Generate Allure report
         run: |
-          cp -r artifacts/test-artifacts/allure-results/* allure-results/ || true
+          cp -r artifacts/allure-results/* allure-results/ || true
           allure generate allure-results --clean -o allure-report
+          touch allure-report/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
