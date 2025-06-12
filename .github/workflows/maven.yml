@@ -135,6 +135,19 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
+      # You still need Java to run the Allure CLI
+      - name: Set up JDK 21 for Allure CLI
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # ✅ Clean, zero-maintenance Allure installation
+      - name: Set up Allure CLI
+        uses: allure-framework/setup-allurectl@v1
+        with:
+          version: '2.34.0'   # Pin or omit to get “latest”
+
       - name: Fetch gh-pages history (optional)
         if: always()
         continue-on-error: true
@@ -144,29 +157,6 @@ jobs:
           else
             echo "No gh-pages branch found — skipping history fetch."
           fi
-
-      - name: Set up JDK 21 for Allure CLI
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Cache Allure CLI
-        uses: actions/cache@v4
-        with:
-          path: /opt/allure-2.29.1
-          key: allure-cli-2.29.1
-          restore-keys: |
-            allure-cli-
-
-      - name: Install Allure CLI
-        run: |
-          if [ ! -d "/opt/allure-2.29.1" ]; then
-            echo "Downloading Allure CLI 2.29.1 (zip)…"
-            curl -sSL -o allure-cli.zip https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.zip
-            sudo unzip -q allure-cli.zip -d /opt
-          fi
-          sudo ln -sf /opt/allure-2.29.1/bin/allure /usr/local/bin/allure
 
       - name: Copy Allure history
         if: always()
