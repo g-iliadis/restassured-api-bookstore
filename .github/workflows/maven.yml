@@ -22,7 +22,6 @@ permissions:
 
 jobs:
   test:
-    # Job name kept simple to avoid expression-evaluation errors
     name: Tests
     runs-on: ubuntu-latest
 
@@ -135,18 +134,17 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
-      # You still need Java to run the Allure CLI
       - name: Set up JDK 21 for Allure CLI
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      # ✅ Clean, zero-maintenance Allure installation
+      # Allure CLI via official action
       - name: Set up Allure CLI
         uses: allure-framework/setup-allurectl@v1
         with:
-          version: '2.34.0'   # Pin or omit to get “latest”
+          allurectl-version: latest   # pin if you prefer a specific version
 
       - name: Fetch gh-pages history (optional)
         if: always()
@@ -169,8 +167,9 @@ jobs:
 
       - name: Generate Allure report
         run: |
-          cp -r artifacts/test-artifacts/allure-results/* allure-results/ || true
-          allure generate allure-results --clean --output allure-report
+          # pull in results produced by the Maven plugin
+          cp -r artifacts/allure-results/* allure-results/ || true
+          allurectl generate allure-results --clean --output allure-report
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
