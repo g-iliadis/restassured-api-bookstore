@@ -93,28 +93,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # κατεβάζουμε τον κώδικα (main) – χρειάζεται για το workflow
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # κατεβάζουμε τα artifacts με τα αποτελέσματα
       - name: Download test artifacts
         uses: actions/download-artifact@v4
         with:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
-      # αντιγράφουμε τα allure-results εκεί που τα θέλει το action
       - name: Prepare Allure results directory
         run: |
           mkdir -p build/allure-results
           cp -r artifacts/allure-results/* build/allure-results/ || true
 
-      # 🆕 δημιουργούμε κενό φάκελο 'gh-pages' ως history path
       - name: Create empty history folder
         run: mkdir -p gh-pages
 
-      # χτίζουμε το report με simple-elf/allure-report-action
       - name: Build test report
         uses: simple-elf/allure-report-action@v1.7
         if: always()
@@ -123,7 +118,6 @@ jobs:
           allure_history: allure-history
           allure_results: build/allure-results
 
-      # δημοσιεύουμε στο branch gh-pages (θα δημιουργηθεί orphan αν δεν υπάρχει)
       - name: Publish test report
         uses: peaceiris/actions-gh-pages@v3
         if: always()
