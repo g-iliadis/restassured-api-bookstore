@@ -162,11 +162,12 @@ jobs:
       - name: Install Allure CLI
         run: |
           if [ ! -d "/opt/allure" ]; then
-            curl -sLo allure-cli.tgz https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.tgz
-            tar -xzf allure-cli.tgz
-            sudo mv allure-2.29.1 /opt/allure
+            echo "Downloading Allure CLI 2.29.1…"
+            curl -sSL -o allure-cli.tgz https://github.com/allure-framework/allure2/releases/download/2.29.1/allure-2.29.1.tgz
+            sudo tar -xzf allure-cli.tgz -C /opt
+            sudo mv /opt/allure-2.29.1 /opt/allure
           fi
-          sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
+          sudo ln -sf /opt/allure/bin/allure /usr/local/bin/allure
 
       - name: Copy Allure history
         if: always()
