@@ -12,10 +12,7 @@ on:
         required: false
         default: ''
         type: choice
-        options:
-          - ''
-          - test
-          - demo
+        options: ['', test, demo]
 
 permissions:
   contents: read
@@ -46,7 +43,7 @@ jobs:
       - name: Run tests
         run: mvn --batch-mode clean test -Denv=${TEST_ENV}
 
-      - name: Generate Allure report files
+      - name: Generate Allure result files
         if: always()
         run: mvn --batch-mode allure:report
 
@@ -134,17 +131,14 @@ jobs:
           name: test-results-${{ github.run_number }}-${{ github.run_attempt }}
           path: artifacts
 
-      - name: Set up JDK 21 for Allure CLI
+      - name: Set up JDK 21 (needed by Allure HTML)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      # Allure CLI via official action
-      - name: Set up Allure CLI
-        uses: allure-framework/setup-allurectl@v1
-        with:
-          allurectl-version: latest   # pin if you prefer a specific version
+      - name: Install Allure CLI
+        run: npm i -g allure-commandline@2.29.0
 
       - name: Fetch gh-pages history (optional)
         if: always()
@@ -167,9 +161,8 @@ jobs:
 
       - name: Generate Allure report
         run: |
-          # pull in results produced by the Maven plugin
-          cp -r artifacts/allure-results/* allure-results/ || true
-          allurectl generate allure-results --clean --output allure-report
+          cp -r artifacts/test-artifacts/allure-results/* allure-results/ || true
+          allure generate allure-results --clean -o allure-report
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
