@@ -143,14 +143,12 @@ jobs:
 
       - name: Prepare Allure report for Pages
         run: |
-          # παίρνουμε το έτοιμο HTML που έφτιαξε το Maven plugin
-          cp -r artifacts/allure-report final-report
-          # προσθέτουμε/ενημερώνουμε history για trend γραφήματα
+          mkdir -p final-report
+          cp -r artifacts/allure-report/* final-report/
           if [ -d "gh-pages/history" ]; then
             mkdir -p final-report/history
             cp -r gh-pages/history/* final-report/history/
           fi
-          # .nojekyll = μην αγγίζεις assets
           touch final-report/.nojekyll
 
       - name: Setup Pages
